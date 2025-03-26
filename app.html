@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lista de Tarefas com Pomodoro</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="pomodoro-container">
+            <h2>Pomodoro Timer</h2>
+            <div class="timer-container">
+                <div class="progress-ring">
+                    <svg class="progress-ring__circle" width="200" height="200">
+                        <circle class="progress-ring__circle-bg" cx="100" cy="100" r="90" />
+                        <circle class="progress-ring__circle-progress" cx="100" cy="100" r="90" />
+                    </svg>
+                    <div class="timer" id="timer">25:00</div>
+                </div>
+            </div>
+            <div class="pomodoro-controls">
+                <button id="startPomodoro" class="pomodoro-button">Iniciar</button>
+                <button id="resetPomodoro" class="pomodoro-button">Reiniciar</button>
+            </div>
+            <div class="pomodoro-status">Trabalho</div>
+            <audio id="timerSound" src="./som.mp3" preload="auto"></audio>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-button active" data-tab="tasks">Minhas Tarefas</button>
+            <button class="tab-button" data-tab="summaries">Resumos</button>
+        </div>
+
+        <div class="tab-content">
+            <div id="tasks" class="tab-pane active">
+                <h1>Minhas Tarefas</h1>
+                <input type="text" id="taskInput" placeholder="Digite uma nova tarefa">
+                <ul id="taskList"></ul>
+            </div>
+            
+            <div id="summaries" class="tab-pane">
+                <div class="summaries-header">
+                    <h1>Resumos</h1>
+                    <button id="addCategory" class="summary-button">
+                        <i class="fas fa-plus"></i> Nova Categoria
+                    </button>
+                </div>
+                
+                <div class="categories-list" id="categoriesList">
+                    <!-- Categorias serão adicionadas aqui -->
+                </div>
+
+                <div class="summary-editor" style="display: none;">
+                    <div class="editor-header">
+                        <input type="text" id="summaryTitle" class="title-input" placeholder="Título do resumo...">
+                        <select id="summaryCategory" class="category-select">
+                            <option value="">Selecione uma categoria...</option>
+                        </select>
+                    </div>
+                    <div class="editor-toolbar">
+                        <button class="toolbar-btn" data-format="bold"><i class="fas fa-bold"></i></button>
+                        <button class="toolbar-btn" data-format="italic"><i class="fas fa-italic"></i></button>
+                        <button class="toolbar-btn" data-format="underline"><i class="fas fa-underline"></i></button>
+                        <button class="toolbar-btn" data-format="h1">H1</button>
+                        <button class="toolbar-btn" data-format="h2">H2</button>
+                        <button class="toolbar-btn" data-format="h3">H3</button>
+                        <button class="toolbar-btn" data-format="list"><i class="fas fa-list"></i></button>
+                    </div>
+                    <div id="summaryInput" class="summary-input" contenteditable="true"></div>
+                    <div class="editor-footer">
+                        <button id="saveSummary" class="summary-button">Salvar</button>
+                        <button id="cancelSummary" class="summary-button cancel">Cancelar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="pomodoro.js"></script>
+    <script src="summaries.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const taskInput = document.getElementById('taskInput');
+            const taskList = document.getElementById('taskList');
+
+            // Carrega tarefas salvas
+            loadTasks();
+
+            taskInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && taskInput.value.trim()) {
+                    addTask(taskInput.value.trim());
+                    taskInput.value = '';
+                }
+            });
+
+            function addTask(text) {
+                const li = document.createElement('li');
+                li.className = 'task-item';
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                
+                const label = document.createElement('span');
+                label.textContent = text;
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = 'Excluir';
+                deleteBtn.onclick = () => taskList.removeChild(li);
+
+                checkbox.addEventListener('change', () => {
+                    li.classList.toggle('completed');
+                    if (checkbox.checked) {
+                        taskList.appendChild(li);
+                    } else {
+                        taskList.insertBefore(li, taskList.firstChild);
+                    }
+                    saveTasks();
+                });
+
+                li.append(checkbox, label, deleteBtn);
+                taskList.insertBefore(li, taskList.firstChild);
+                saveTasks();
+            }
+
+            function saveTasks() {
+                const tasks = [];
+                document.querySelectorAll('.task-item').forEach(task => {
+                    tasks.push({
+                        text: task.querySelector('span').textContent,
+                        completed: task.classList.contains('completed')
+                    });
+                });
+                localStorage.setItem('tasks', JSON.stringify(tasks));
+            }
+
+            function loadTasks() {
+                const tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+                tasks.forEach(task => {
+                    addTask(task.text);
+                    const li = taskList.lastElementChild;
+                    if (task.completed) {
+                        li.classList.add('completed');
+                        li.querySelector('input').checked = true;
+                        taskList.appendChild(li);
+                    }
+                });
+            }
+
+            // Adicionando funcionalidade de abas
+            const tabs = document.querySelectorAll('.tab-button');
+            const tabPanes = document.querySelectorAll('.tab-pane');
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const tabId = tab.getAttribute('data-tab');
+                    const tabPane = document.getElementById(tabId);
+
+                    tabs.forEach(t => t.classList.remove('active'));
+                    tabPanes.forEach(p => p.classList.remove('active'));
+
+                    tab.classList.add('active');
+                    tabPane.classList.add('active');
+                });
+            });
+        });
+    </script>
+</body>
+</html>
